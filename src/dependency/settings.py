@@ -20,8 +20,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_host: str
-    app_port: int
+    host: str
+    port: int
 
     embedding_model_name: str
     generative_model_name: str
