@@ -3,13 +3,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from qdrant_client.http.models import Distance
 
 
-class QdrantVectorStoreSettings(BaseModel):
+class QdrantSettings(BaseModel):
     host: str
     port: int
     collection_name: str
     vector_size: int
     distance: Distance
     k: int
+
+
+class VllmSettings(BaseModel):
+    llm_base_url: str
+    embedding_base_url: str
+    api_key: str = "EMPTY"
 
 
 class Settings(BaseSettings):
@@ -26,7 +32,8 @@ class Settings(BaseSettings):
     embedding_model_name: str
     generative_model_name: str
 
-    qdrant_vector_store: QdrantVectorStoreSettings
+    vllm: VllmSettings
+    qdrant: QdrantSettings
 
 
 settings = Settings()

@@ -1,0 +1,10 @@
+.venv
+.history
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+.env_secrets
+agent-tools
+terminals

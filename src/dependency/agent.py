@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from langchain.agents import create_agent
 from langchain.tools import ToolRuntime, tool
 from langchain_core.vectorstores import VectorStore
-from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 from langgraph.graph.state import CompiledStateGraph
 
 from dependency.settings import settings
@@ -18,7 +18,7 @@ class RetrieveKnowledgeContext:
 def retrieve_knowledge(runtime: ToolRuntime[RetrieveKnowledgeContext], query: str):
     """Retrieve information to help answer a query."""
     retrieved_docs = runtime.context.vector_store.similarity_search(
-        query, k=settings.qdrant_vector_store.k
+        query, k=settings.qdrant.k
     )
     response = "\n\n".join(
         (f"Source: {doc.metadata}\nContent: {doc.page_content}")
@@ -32,29 +32,10 @@ prompt = (
     "Use the tool to help answer user queries."
 )
 
-# quantization_config = BitsAndBytesConfig(
-#     load_in_4bit=True,
-#     bnb_4bit_quant_type="nf4",
-#     bnb_4bit_compute_dtype="float16",
-#     bnb_4bit_use_double_quant=True,
-# )
-
-# pipeline = HuggingFacePipeline.from_model_id(
-#     model_id="Qwen/Qwen3.5-4B",
-#     task="text-generation",
-#     pipeline_kwargs=dict(
-#         max_new_tokens=1024,
-#         do_sample=False,
-#         return_full_text=False,
-#     ),
-#     model_kwargs={"quantization_config": quantization_config},
-# )
-
-# model = ChatHuggingFace(llm=pipeline)
-
-model = ChatOllama(
+model = ChatOpenAI(
     model=settings.generative_model_name,
-    validate_model_on_init=True,
+    base_url=settings.vllm.llm_base_url,
+    api_key=settings.vllm.api_key,
     temperature=0,
 )
 
