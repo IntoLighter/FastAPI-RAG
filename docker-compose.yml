@@ -46,6 +46,9 @@ services:
       timeout: 10s
       retries: 30
       start_period: 600s
+    depends_on:
+      embedding:
+        condition: service_healthy
 
   embedding:
     container_name: embedding

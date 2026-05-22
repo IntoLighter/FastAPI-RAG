@@ -28,7 +28,7 @@ vector_store = QdrantVectorStore(
     embedding=OpenAIEmbeddings(
         model=settings.embedding.name,
         base_url=settings.embedding.base_url,
-        api_key="",
+        api_key="EMPTY",
     ),
 )
 

@@ -35,7 +35,7 @@ prompt = (
 model = ChatOpenAI(
     model=settings.generative.name,
     base_url=settings.generative.base_url,
-    api_key="",
+    api_key="EMPTY",
     temperature=0,
 )
 
