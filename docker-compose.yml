@@ -1,12 +1,25 @@
 name: fastapi-rag
 
 services:
+  app:
+    container_name: app
+    build: .
+    ports:
+      - "${APP__PORT}:8000"
+    depends_on:
+      qdrant:
+        condition: service_started
+      generative:
+        condition: service_healthy
+      embedding:
+        condition: service_healthy
+
   qdrant:
     container_name: qdrant
     env_file: .env
     image: qdrant/qdrant:v1.18.0
     ports:
-      - "${QDRANT__PORT:-6333}:6333"
+      - "${QDRANT__PORT}:6333"
     volumes:
       - qdrant_data:/qdrant/storage
 
@@ -15,18 +28,18 @@ services:
     image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
     env_file: .env
     ports:
-      - "${VLLM__LLM_PORT:-8001}:8000"
+      - "${GENERATIVE__PORT}:8000"
     volumes:
       - huggingface_cache:/root/.cache/huggingface
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
     gpus: all
     command:
-      - "${GENERATIVE_NAME}"
+      - "${GENERATIVE__NAME}"
       - "--gpu-memory-utilization"
-      - "${VLLM__LLM_GPU_MEMORY_UTILIZATION:-0.85}"
+      - "${GENERATIVE__GPU_MEMORY_UTILIZATION}"
       - "--max-model-len"
-      - "${VLLM__LLM_MAX_MODEL_LEN:-4096}"
+      - "${GENERATIVE__MAX_MODEL_LEN}"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s
@@ -39,7 +52,7 @@ services:
     image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
     env_file: .env
     ports:
-      - "${VLLM__EMBEDDING_PORT:-8002}:8000"
+      - "${EMBEDDING__PORT}:8000"
     volumes:
       - huggingface_cache:/root/.cache/huggingface
     environment:
@@ -48,33 +61,15 @@ services:
     command:
       - "${EMBEDDING__NAME}"
       - "--gpu-memory-utilization"
-      - "${VLLM__EMBEDDING_GPU_MEMORY_UTILIZATION:-0.5}"
+      - "${EMBEDDING__GPU_MEMORY_UTILIZATION}"
       - "--max-model-len"
-      - "${VLLM__EMBEDDING_MAX_MODEL_LEN:-2048}"
+      - "${EMBEDDING__MAX_MODEL_LEN}"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 30
       start_period: 600s
-
-  app:
-    container_name: app
-    build: .
-    ports:
-      - "${PORT:-8000}:8000"
-    environment:
-      HOST: 0.0.0.0
-      PORT: 8000
-      VLLM__LLM_BASE_URL: http://generative:8000/v1
-      VLLM__EMBEDDING_BASE_URL: http://embedding:8000/v1
-    depends_on:
-      qdrant:
-        condition: service_started
-      generative:
-        condition: service_healthy
-      embedding:
-        condition: service_healthy
 
 volumes:
   huggingface_cache:

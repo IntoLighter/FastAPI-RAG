@@ -3,6 +3,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from qdrant_client.http.models import Distance
 
 
+class AppSettings(BaseModel):
+    port: int
+
+
 class QdrantSettings(BaseModel):
     host: str
     port: int
@@ -12,10 +16,20 @@ class QdrantSettings(BaseModel):
     k: int
 
 
-class VllmSettings(BaseModel):
-    llm_base_url: str
-    embedding_base_url: str
-    api_key: str = "EMPTY"
+class GenerativeSettings(BaseModel):
+    name: str
+    port: int
+    gpu_memory_utilization: float
+    max_model_len: int
+    base_url: str
+
+
+class EmbeddingSettings(BaseModel):
+    name: str
+    port: int
+    gpu_memory_utilization: float
+    max_model_len: int
+    base_url: str
 
 
 class Settings(BaseSettings):
@@ -26,13 +40,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    host: str
-    port: int
-
-    embedding_model_name: str
-    generative_model_name: str
-
-    vllm: VllmSettings
+    app: AppSettings
+    generative: GenerativeSettings
+    embedding: EmbeddingSettings
     qdrant: QdrantSettings
 
 

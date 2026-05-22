@@ -33,9 +33,9 @@ prompt = (
 )
 
 model = ChatOpenAI(
-    model=settings.generative_model_name,
-    base_url=settings.vllm.llm_base_url,
-    api_key=settings.vllm.api_key,
+    model=settings.generative.name,
+    base_url=settings.generative.base_url,
+    api_key="",
     temperature=0,
 )
 

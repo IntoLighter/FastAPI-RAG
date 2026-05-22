@@ -12,11 +12,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY . .
 
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
-
 ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT []
 
-CMD ["python", "src/main.py"]
+CMD ["fastapi", "run", "src/main.py"]
