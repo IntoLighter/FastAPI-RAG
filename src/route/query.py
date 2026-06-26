@@ -4,8 +4,8 @@ from fastapi import APIRouter, Body, Depends
 from langchain_core.vectorstores import VectorStore
 from langgraph.graph.state import CompiledStateGraph
 
-from dependency.vector_store import get_vector_store
 from dependency.agent import RetrieveKnowledgeContext, get_agent
+from dependency.vector_store import get_vector_store
 from schema.query import QueryResponse, RetrieveResult
 
 router = APIRouter(tags=["query"])
@@ -28,7 +28,7 @@ async def query(
         if message.type == "ai" and message.tool_calls:
             tool_data = message.tool_calls[0]
             results[tool_data["id"]] = RetrieveResult(
-                query=tool_data["args"]["query"], chunks=[]
+                query=tool_data["args"]["query"], chunks=[],
             )
         elif message.type == "tool":
             results[message.tool_call_id].chunks = [
@@ -36,5 +36,5 @@ async def query(
             ]
 
     return QueryResponse(
-        response=response["messages"][-1].text, knowledge=list(results.values())
+        response=response["messages"][-1].text, knowledge=list(results.values()),
     )

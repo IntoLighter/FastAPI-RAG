@@ -18,7 +18,7 @@ class RetrieveKnowledgeContext:
 def retrieve_knowledge(runtime: ToolRuntime[RetrieveKnowledgeContext], query: str):
     """Retrieve information to help answer a query."""
     retrieved_docs = runtime.context.vector_store.similarity_search(
-        query, k=settings.qdrant.k
+        query, k=settings.qdrant.k,
     )
     response = "\n\n".join(
         (f"Source: {doc.metadata}\nContent: {doc.page_content}")
