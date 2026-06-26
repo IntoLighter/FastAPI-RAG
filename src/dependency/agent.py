@@ -16,9 +16,15 @@ class RetrieveKnowledgeContext:
 
 @tool(response_format="content_and_artifact")
 def retrieve_knowledge(runtime: ToolRuntime[RetrieveKnowledgeContext], query: str):
-    """Retrieve information to help answer a query."""
+    """
+    Mandatory tool for retrieving factual context from internal knowledge base.
+
+    ALWAYS use this tool before answering any question.
+    Input `query` should be a rewritten version of the user question optimized for search.
+    """
     retrieved_docs = runtime.context.vector_store.similarity_search(
-        query, k=settings.qdrant.k,
+        query,
+        k=settings.rag.top_k,
     )
     response = "\n\n".join(
         (f"Source: {doc.metadata}\nContent: {doc.page_content}")
@@ -27,16 +33,27 @@ def retrieve_knowledge(runtime: ToolRuntime[RetrieveKnowledgeContext], query: st
     return response, retrieved_docs
 
 
-prompt = (
-    "You have access to a tool that retrieves context from a database. "
-    "Use the tool to help answer user queries."
-)
+prompt = """
+You are a retrieval-augmented assistant.
+
+You MUST follow these rules:
+
+1. For EVERY user question, you MUST first call the tool `retrieve_knowledge`.
+2. You are NOT allowed to answer from your internal knowledge without using the tool first.
+3. Even if you think you know the answer, you still MUST use the tool.
+4. Only after receiving tool output, you may generate the final answer.
+5. If the tool returns no relevant information, say that the information was not found in the knowledge base.
+
+Violation of these rules is not allowed.
+
+Tool usage format:
+- Always call `retrieve_knowledge` with a relevant search query derived from the user question.
+"""
 
 model = ChatOpenAI(
     model=settings.generative.name,
     base_url=settings.generative.base_url,
     api_key="EMPTY",
-    temperature=0,
 )
 
 agent = create_agent(model, [retrieve_knowledge], system_prompt=prompt)

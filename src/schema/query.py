@@ -1,6 +1,10 @@
 from pydantic import BaseModel
 
 
+class QueryRequest(BaseModel):
+    message: str
+
+
 class RetrieveResult(BaseModel):
     query: str
     chunks: list[str]

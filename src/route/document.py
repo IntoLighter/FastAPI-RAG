@@ -7,6 +7,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_qdrant import QdrantVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from dependency.settings import settings
 from dependency.vector_store import get_vector_store
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -31,8 +32,10 @@ async def upload(
     loader = PyPDFLoader(tmp_path)
     docs = loader.load()
 
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, chunk_overlap=200, add_start_index=True,
+    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        chunk_size=settings.rag.chunk_size,
+        chunk_overlap=settings.rag.chunk_overlap,
+        separators=settings.rag.separators,
     )
     all_splits = text_splitter.split_documents(docs)
 

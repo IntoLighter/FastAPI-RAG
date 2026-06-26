@@ -1,24 +1,24 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Depends
 from langchain_core.vectorstores import VectorStore
 from langgraph.graph.state import CompiledStateGraph
 
 from dependency.agent import RetrieveKnowledgeContext, get_agent
 from dependency.vector_store import get_vector_store
-from schema.query import QueryResponse, RetrieveResult
+from schema.query import QueryRequest, QueryResponse, RetrieveResult
 
 router = APIRouter(tags=["query"])
 
 
 @router.post(path="/query")
 async def query(
-    query: Annotated[str, Body],
+    query: QueryRequest,
     vector_store: Annotated[VectorStore, Depends(get_vector_store)],
     agent: Annotated[CompiledStateGraph, Depends(get_agent)],
 ) -> QueryResponse:
     response = await agent.ainvoke(
-        {"messages": [{"role": "user", "content": query}]},
+        {"messages": [{"role": "user", "content": query.message}]},
         context=RetrieveKnowledgeContext(vector_store),
     )
 
@@ -28,7 +28,8 @@ async def query(
         if message.type == "ai" and message.tool_calls:
             tool_data = message.tool_calls[0]
             results[tool_data["id"]] = RetrieveResult(
-                query=tool_data["args"]["query"], chunks=[],
+                query=tool_data["args"]["query"],
+                chunks=[],
             )
         elif message.type == "tool":
             results[message.tool_call_id].chunks = [
@@ -36,5 +37,6 @@ async def query(
             ]
 
     return QueryResponse(
-        response=response["messages"][-1].text, knowledge=list(results.values()),
+        response=response["messages"][-1].text,
+        knowledge=list(results.values()),
     )

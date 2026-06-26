@@ -4,8 +4,10 @@ services:
   app:
     container_name: app
     build: .
+    # command: ["sh", "-c", "pip install debugpy -t /tmp && python /tmp/debugpy --wait-for-client --listen 0.0.0.0:5678 -m fastapi run src/main.py"]
     ports:
-      - "${APP__PORT}:8000"
+      - ${APP__PORT}:8000
+      # - 5678:5678
     depends_on:
       qdrant:
         condition: service_started
@@ -19,7 +21,7 @@ services:
     env_file: .env
     image: qdrant/qdrant:v1.18.0
     ports:
-      - "${QDRANT__PORT}:6333"
+      - ${QDRANT__PORT}:6333
     volumes:
       - qdrant_data:/qdrant/storage
 
@@ -28,18 +30,19 @@ services:
     image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
     env_file: .env
     ports:
-      - "${GENERATIVE__PORT}:8000"
+      - ${GENERATIVE__PORT}:8000
     volumes:
       - huggingface_cache:/root/.cache/huggingface
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
     gpus: all
-    command:
-      - "${GENERATIVE__NAME}"
-      - "--gpu-memory-utilization"
-      - "${GENERATIVE__GPU_MEMORY_UTILIZATION}"
-      - "--max-model-len"
-      - "${GENERATIVE__MAX_MODEL_LEN}"
+    command: >
+      ${GENERATIVE__NAME}
+      --gpu-memory-utilization ${GENERATIVE__GPU_MEMORY_UTILIZATION}
+      --max-model-len ${GENERATIVE__MAX_MODEL_LEN}
+      --enable-auto-tool-choice
+      --tool-call-parser hermes
+      --reasoning-parser qwen3
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s
@@ -55,18 +58,16 @@ services:
     image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
     env_file: .env
     ports:
-      - "${EMBEDDING__PORT}:8000"
+      - ${EMBEDDING__PORT}:8000
     volumes:
       - huggingface_cache:/root/.cache/huggingface
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
     gpus: all
-    command:
-      - "${EMBEDDING__NAME}"
-      - "--gpu-memory-utilization"
-      - "${EMBEDDING__GPU_MEMORY_UTILIZATION}"
-      - "--max-model-len"
-      - "${EMBEDDING__MAX_MODEL_LEN}"
+    command: >
+      ${EMBEDDING__NAME}
+      --gpu-memory-utilization ${EMBEDDING__GPU_MEMORY_UTILIZATION}
+      --max-model-len ${EMBEDDING__MAX_MODEL_LEN}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s
