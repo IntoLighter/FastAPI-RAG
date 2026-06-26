@@ -15,3 +15,12 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "pypdf>=6.7.5",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.20",
+]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["D1"]
