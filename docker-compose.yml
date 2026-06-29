@@ -1,9 +1,72 @@
 name: fastapi-rag
 
 services:
+  qdrant:
+    container_name: qdrant
+    image: qdrant/qdrant:v1.18.0
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - ${QDRANT__PORT}:6333
+
+  embedding:
+    container_name: embedding
+    image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    ports:
+      - ${EMBEDDING__PORT}:8000
+    command: >
+      ${EMBEDDING__NAME}
+      --gpu-memory-utilization ${EMBEDDING__GPU_MEMORY_UTILIZATION}
+      --max-model-len ${EMBEDDING__MAX_MODEL_LEN}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
+    gpus: all
+
+  generative:
+    container_name: generative
+    image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    ports:
+      - ${GENERATIVE__PORT}:8000
+    command: >
+      ${GENERATIVE__NAME}
+      --gpu-memory-utilization ${GENERATIVE__GPU_MEMORY_UTILIZATION}
+      --max-model-len ${GENERATIVE__MAX_MODEL_LEN}
+      --enable-auto-tool-choice
+      --tool-call-parser hermes
+      --reasoning-parser qwen3
+    depends_on:
+      embedding:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
+    gpus: all
+
   app:
     container_name: app
     build: .
+    restart: unless-stopped
     # command: ["sh", "-c", "pip install debugpy -t /tmp && python /tmp/debugpy --wait-for-client --listen 0.0.0.0:5678 -m fastapi run src/main.py"]
     ports:
       - ${APP__PORT}:8000
@@ -15,65 +78,6 @@ services:
         condition: service_healthy
       embedding:
         condition: service_healthy
-
-  qdrant:
-    container_name: qdrant
-    env_file: .env
-    image: qdrant/qdrant:v1.18.0
-    ports:
-      - ${QDRANT__PORT}:6333
-    volumes:
-      - qdrant_data:/qdrant/storage
-
-  generative:
-    container_name: generative
-    image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
-    env_file: .env
-    ports:
-      - ${GENERATIVE__PORT}:8000
-    volumes:
-      - huggingface_cache:/root/.cache/huggingface
-    environment:
-      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
-    gpus: all
-    command: >
-      ${GENERATIVE__NAME}
-      --gpu-memory-utilization ${GENERATIVE__GPU_MEMORY_UTILIZATION}
-      --max-model-len ${GENERATIVE__MAX_MODEL_LEN}
-      --enable-auto-tool-choice
-      --tool-call-parser hermes
-      --reasoning-parser qwen3
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 30
-      start_period: 600s
-    depends_on:
-      embedding:
-        condition: service_healthy
-
-  embedding:
-    container_name: embedding
-    image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
-    env_file: .env
-    ports:
-      - ${EMBEDDING__PORT}:8000
-    volumes:
-      - huggingface_cache:/root/.cache/huggingface
-    environment:
-      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
-    gpus: all
-    command: >
-      ${EMBEDDING__NAME}
-      --gpu-memory-utilization ${EMBEDDING__GPU_MEMORY_UTILIZATION}
-      --max-model-len ${EMBEDDING__MAX_MODEL_LEN}
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 30
-      start_period: 600s
 
 volumes:
   huggingface_cache:

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from langchain.agents import create_agent
 from langchain.tools import ToolRuntime, tool
+from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStore
 from langchain_openai import ChatOpenAI
 from langgraph.graph.state import CompiledStateGraph
@@ -15,7 +16,9 @@ class RetrieveKnowledgeContext:
 
 
 @tool(response_format="content_and_artifact")
-def retrieve_knowledge(runtime: ToolRuntime[RetrieveKnowledgeContext], query: str):
+def retrieve_knowledge(
+    runtime: ToolRuntime[RetrieveKnowledgeContext], query: str,
+) -> tuple[str, list[Document]]:
     """
     Mandatory tool for retrieving factual context from internal knowledge base.
 
