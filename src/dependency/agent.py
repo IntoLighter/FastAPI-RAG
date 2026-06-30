@@ -1,12 +1,51 @@
 from dataclasses import dataclass
+from typing import Any
 
+import httpx
 from langchain.agents import create_agent
 from langchain.tools import tool
 from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
+from openai import AsyncOpenAI, BaseModel
+from pydantic import field_validator
 
 from dependency.settings import settings
 from dependency.vector_store import vector_store
+
+client = AsyncOpenAI(
+    base_url=settings.reranker.base_url,
+    api_key="EMPTY",
+)
+
+
+class RerankResult(BaseModel):
+    index: int
+    relevance_score: float
+    document: str
+
+    @field_validator("document", mode="before")
+    @classmethod
+    def extract_document(cls, v: Any) -> str:
+        return v.get("text")
+
+
+class RerankResponse(BaseModel):
+    results: list[RerankResult]
+
+
+async def rerank(query: str, docs: list[str]) -> list[RerankResult]:
+    raw = await client.post(
+        "/rerank",
+        cast_to=httpx.Response,
+        body={
+            "model": settings.reranker.name,
+            "query": query,
+            "documents": docs,
+        },
+    )
+
+    response = RerankResponse.model_validate(raw.json())
+    return response.results
 
 
 @dataclass
@@ -15,7 +54,7 @@ class RetrieveArtifact:
     final_query: str
 
 
-def get_hyde_query(query: str) -> str:
+async def get_hyde_query(query: str) -> str:
     hyde_prompt = f"""
     Write a detailed textbook-style passage that answers the question.
 
@@ -23,11 +62,11 @@ def get_hyde_query(query: str) -> str:
 
     Answer:
     """
-    return generative.invoke(hyde_prompt).content
+    return await generative.ainvoke(hyde_prompt).content
 
 
 @tool(response_format="content_and_artifact")
-def retrieve_knowledge(
+async def retrieve_knowledge(
     query: str,
 ) -> tuple[str, RetrieveArtifact]:
     """
@@ -38,19 +77,30 @@ def retrieve_knowledge(
     """
 
     # final_query = query
-    # final_query = get_hyde_query(query)
+    # final_query = await get_hyde_query(query)
     task_description = "Given a user question, retrieve relevant passages from a knowledge base that answer the question."
     final_query = f"Instruct: {task_description}\nQuery: {query}"
 
-    retrieved_docs = vector_store.similarity_search(
+    docs = vector_store.similarity_search(
         final_query,
-        k=settings.rag.top_k,
+        k=settings.rag.retrieve_top_k,
     )
+
+    doc_texts = [d.page_content for d in docs]
+    reranked_documents = await rerank(query, doc_texts)
+
+    rerank_top_k_documents = reranked_documents[:settings.rag.rerank_top_k]
+    rerank_top_k_texts = [d.document for d in rerank_top_k_documents]
+
     response = "\n\n".join(
-        f"[Document {i}]\n{doc.page_content}"
-        for i, doc in enumerate(retrieved_docs, start=1)
+        f"[Document {i}]\n{doc}"
+        for i, doc in enumerate(rerank_top_k_texts, start=1)
     )
-    return response, RetrieveArtifact(docs=retrieved_docs, final_query=final_query)
+
+    return response, RetrieveArtifact(
+        docs=rerank_top_k_texts,
+        final_query=final_query
+    )
 
 
 prompt = """

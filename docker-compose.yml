@@ -11,29 +11,6 @@ services:
     ports:
       - ${QDRANT__PORT}:6333
 
-  embedding:
-    container_name: embedding
-    image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
-    volumes:
-      - huggingface_cache:/root/.cache/huggingface
-    ports:
-      - ${EMBEDDING__PORT}:8000
-    command: >
-      ${EMBEDDING__NAME}
-      --gpu-memory-utilization ${EMBEDDING__GPU_MEMORY_UTILIZATION}
-      --max-model-len ${EMBEDDING__MAX_MODEL_LEN}
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 30
-      start_period: 600s
-    gpus: all
-
   generative:
     container_name: generative
     image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
@@ -47,14 +24,13 @@ services:
       - ${GENERATIVE__PORT}:8000
     command: >
       ${GENERATIVE__NAME}
-      --gpu-memory-utilization ${GENERATIVE__GPU_MEMORY_UTILIZATION}
-      --max-model-len ${GENERATIVE__MAX_MODEL_LEN}
       --enable-auto-tool-choice
       --tool-call-parser hermes
       --reasoning-parser qwen3
-    depends_on:
-      embedding:
-        condition: service_healthy
+      --gpu-memory-utilization ${GENERATIVE__GPU_MEMORY_UTILIZATION}
+      --max-model-len ${GENERATIVE__MAX_MODEL_LEN}
+      --max-num-seqs ${GENERATIVE__MAX_NUM_SEQS}
+      --enforce-eager
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s
@@ -62,6 +38,57 @@ services:
       retries: 30
       start_period: 600s
     gpus: all
+
+  embedding:
+    container_name: embedding
+    image: vllm/vllm-openai:v0.21.0-x86_64-cu129-ubuntu2404
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    ports:
+      - ${EMBEDDING__PORT}:8000
+    command: >
+      ${EMBEDDING__NAME}
+      --runner pooling
+      --gpu-memory-utilization ${EMBEDDING__GPU_MEMORY_UTILIZATION}
+      --max-model-len ${EMBEDDING__MAX_MODEL_LEN}
+      --max-num-seqs ${EMBEDDING__MAX_NUM_SEQS}
+      --enforce-eager
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
+    gpus: all
+
+  reranker:
+    container_name: reranker
+    image: vllm/vllm-openai-cpu:v0.21.0-x86_64
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    ports:
+      - ${RERANKER__PORT}:8000
+    command: >
+      ${RERANKER__NAME}
+      --runner pooling
+      --gpu-memory-utilization ${RERANKER__GPU_MEMORY_UTILIZATION}
+      --max-model-len ${RERANKER__MAX_MODEL_LEN}
+      --max-num-seqs ${RERANKER__MAX_NUM_SEQS}
+      --enforce-eager
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
 
   api:
     container_name: api
@@ -77,6 +104,8 @@ services:
       generative:
         condition: service_healthy
       embedding:
+        condition: service_healthy
+      reranker:
         condition: service_healthy
 
 volumes:

@@ -7,7 +7,8 @@ class RagSettings(BaseModel):
     chunk_size: int
     chunk_overlap: int
     separators: list[str]
-    top_k: int
+    retrieve_top_k: int
+    rerank_top_k: int
 
 
 class AppSettings(BaseModel):
@@ -24,17 +25,16 @@ class QdrantSettings(BaseModel):
 
 class GenerativeSettings(BaseModel):
     name: str
-    port: int
-    gpu_memory_utilization: float
-    max_model_len: int
     base_url: str
 
 
 class EmbeddingSettings(BaseModel):
     name: str
-    port: int
-    gpu_memory_utilization: float
-    max_model_len: int
+    base_url: str
+
+
+class RerankerSettings(BaseModel):
+    name: str
     base_url: str
 
 
@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     app: AppSettings
     generative: GenerativeSettings
     embedding: EmbeddingSettings
+    reranker: RerankerSettings
     qdrant: QdrantSettings
     rag: RagSettings
 
