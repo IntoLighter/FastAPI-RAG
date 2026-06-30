@@ -63,27 +63,6 @@ services:
       start_period: 600s
     gpus: all
 
-  reranker:
-    container_name: reranker
-    image: vllm/vllm-openai:v0.24.0-x86_64-ubuntu2404
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
-    volumes:
-      - huggingface_cache:/root/.cache/huggingface
-    ports:
-      - ${RERANKER__PORT}:8000
-    command: >
-      ${RERANKER__NAME}
-      --max-model-len ${RERANKER__MAX_MODEL_LEN}
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 30
-      start_period: 600s
-
   app:
     container_name: app
     build: .
@@ -98,8 +77,6 @@ services:
       generative:
         condition: service_healthy
       embedding:
-        condition: service_healthy
-      reranker:
         condition: service_healthy
 
 volumes:
