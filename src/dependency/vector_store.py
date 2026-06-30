@@ -1,4 +1,3 @@
-from langchain_core.vectorstores import VectorStore
 from langchain_openai import OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
@@ -30,7 +29,3 @@ vector_store = QdrantVectorStore(
         api_key="EMPTY",
     ),
 )
-
-
-def get_vector_store() -> VectorStore:
-    return vector_store

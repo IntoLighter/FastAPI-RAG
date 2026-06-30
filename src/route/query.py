@@ -1,11 +1,6 @@
-from typing import Annotated
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Depends
-from langchain_core.vectorstores import VectorStore
-from langgraph.graph.state import CompiledStateGraph
-
-from dependency.agent import RetrieveKnowledgeContext, get_agent
-from dependency.vector_store import get_vector_store
+from dependency import agent
 from schema.query import QueryRequest, QueryResponse, RetrieveResult
 
 router = APIRouter(tags=["query"])
@@ -14,12 +9,9 @@ router = APIRouter(tags=["query"])
 @router.post(path="/query")
 async def query(
     query: QueryRequest,
-    vector_store: Annotated[VectorStore, Depends(get_vector_store)],
-    agent: Annotated[CompiledStateGraph, Depends(get_agent)],
 ) -> QueryResponse:
     response = await agent.ainvoke(
         {"messages": [{"role": "user", "content": query.message}]},
-        context=RetrieveKnowledgeContext(vector_store),
     )
 
     results: dict[str, RetrieveResult] = {}

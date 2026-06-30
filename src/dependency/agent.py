@@ -1,23 +1,43 @@
-from dataclasses import dataclass
-
 from langchain.agents import create_agent
-from langchain.tools import ToolRuntime, tool
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.tools import tool
 from langchain_core.documents import Document
-from langchain_core.vectorstores import VectorStore
+from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
-from langgraph.graph.state import CompiledStateGraph
 
+from dependency import vector_store
 from dependency.settings import settings
 
+base_retriever = vector_store.as_retriever(
+    search_type="similarity",
+    search_kwargs={"k": settings.rag.top_k},
+)
 
-@dataclass
-class RetrieveKnowledgeContext:
-    vector_store: VectorStore
+reranker_runnable = RunnableLambda(
+    lambda inputs: rerank(inputs["query"], inputs["docs"])
+)
+
+compression_retriever = ContextualCompressionRetriever(
+    base_retriever=base_retriever,
+    base_compressor=reranker_runnable,
+)
+
+
+def rerank(query: str, docs: list[Document]) -> list[Document]:
+    pairs = [(query, d.page_content) for d in docs]
+
+    scores = reranker_model.predict(pairs)
+
+    sorted_docs = [
+        doc for _, doc in sorted(zip(scores, docs), key=lambda x: x[0], reverse=True)
+    ]
+
+    return sorted_docs[:5]
 
 
 @tool(response_format="content_and_artifact")
 def retrieve_knowledge(
-    runtime: ToolRuntime[RetrieveKnowledgeContext], query: str,
+    query: str,
 ) -> tuple[str, list[Document]]:
     """
     Mandatory tool for retrieving factual context from internal knowledge base.
@@ -25,7 +45,7 @@ def retrieve_knowledge(
     ALWAYS use this tool before answering any question.
     Input `query` should be a rewritten version of the user question optimized for search.
     """
-    retrieved_docs = runtime.context.vector_store.similarity_search(
+    retrieved_docs = vector_store.similarity_search(
         query,
         k=settings.rag.top_k,
     )
@@ -60,7 +80,3 @@ model = ChatOpenAI(
 )
 
 agent = create_agent(model, [retrieve_knowledge], system_prompt=prompt)
-
-
-def get_agent() -> CompiledStateGraph:
-    return agent
