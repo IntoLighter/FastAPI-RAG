@@ -13,7 +13,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY . .
 
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH=/app/src
 
 ENTRYPOINT []
 
-CMD ["fastapi", "run", "src/main.py"]
+CMD ["fastapi", "run", "--entrypoint", "main:app", "--host", "0.0.0.0", "--port", "8000"]
