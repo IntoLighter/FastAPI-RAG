@@ -30,16 +30,18 @@ async def upload(
         tmp_path = tmp.name
 
     loader = PyPDFLoader(tmp_path)
-    docs = loader.load()
+    docs = await loader.aload()
+
+    full_text = "\n".join([doc.page_content for doc in docs])
 
     text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         chunk_size=settings.rag.chunk_size,
         chunk_overlap=settings.rag.chunk_overlap,
         separators=settings.rag.separators,
     )
-    all_splits = text_splitter.split_documents(docs)
+    all_splits = text_splitter.split_text(full_text)
 
-    vector_store.add_documents(all_splits)
+    await vector_store.aadd_texts(all_splits)
 
     return JSONResponse(
         content={"status": "success", "message": "Document successfully uploaded"},

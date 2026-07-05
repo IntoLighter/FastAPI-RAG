@@ -25,8 +25,19 @@ def retrieve_knowledge(
     ALWAYS use this tool before answering any question.
     Input `query` should be a rewritten version of the user question optimized for search.
     """
+
+    # final_query = f"""
+    # Find explanations from educational or textbook passages that answer the question in detail.
+
+    # {query}
+    # """
+
+    # final_query = f"query: {query}"
+
+    final_query = query
+
     retrieved_docs = runtime.context.vector_store.similarity_search(
-        query,
+        final_query,
         k=settings.rag.top_k,
     )
     response = "\n\n".join(
