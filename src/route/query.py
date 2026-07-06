@@ -20,11 +20,10 @@ async def query(
         if message.type == "ai" and message.tool_calls:
             tool_data = message.tool_calls[0]
             results[tool_data["id"]] = RetrieveResult(
-                query=tool_data["args"]["query"],
-                chunks=[],
+                llm_query=tool_data["args"]["query"],
             )
         elif message.type == "tool":
-            results[message.tool_call_id].hyde = message.artifact.hyde
+            results[message.tool_call_id].final_query = message.artifact.final_query
             results[message.tool_call_id].chunks = [
                 chunk.page_content for chunk in message.artifact.docs
             ]

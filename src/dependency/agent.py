@@ -12,7 +12,18 @@ from dependency.vector_store import vector_store
 @dataclass
 class RetrieveArtifcat:
     docs: list[Document]
-    hyde: str
+    final_query: str
+
+
+def get_hyde_query(query: str) -> str:
+    hyde_prompt = f"""
+    Write a detailed textbook-style passage that answers the question.
+
+    Question: {query}
+
+    Answer:
+    """
+    return generative.invoke(hyde_prompt).content
 
 
 @tool(response_format="content_and_artifact")
@@ -26,15 +37,8 @@ def retrieve_knowledge(
     Input `query` should be a rewritten version of the user question optimized for search.
     """
 
-    hyde_prompt = f"""
-    Write a detailed textbook-style passage that answers the question.
-
-    Question: {query}
-
-    Answer:
-    """
-
-    final_query = generative.invoke(hyde_prompt).content
+    # final_query = get_hyde_query(query)
+    final_query = f"query: {query}"
 
     retrieved_docs = vector_store.similarity_search(
         final_query,
@@ -44,7 +48,7 @@ def retrieve_knowledge(
         (f"Source: {doc.metadata}\nContent: {doc.page_content}")
         for doc in retrieved_docs
     )
-    return response, RetrieveArtifcat(docs=retrieved_docs, hyde=final_query)
+    return response, RetrieveArtifcat(docs=retrieved_docs, final_query=final_query)
 
 
 prompt = """

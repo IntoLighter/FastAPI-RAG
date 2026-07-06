@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class QueryRequest(BaseModel):
@@ -6,9 +6,9 @@ class QueryRequest(BaseModel):
 
 
 class RetrieveResult(BaseModel):
-    query: str
-    hyde: str | None = None
-    chunks: list[str]
+    llm_query: str
+    final_query: str | None = None
+    chunks: list[str] = Field(default_factory=list)
 
 
 class QueryResponse(BaseModel):

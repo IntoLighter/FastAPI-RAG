@@ -6,10 +6,26 @@ from fastapi.responses import JSONResponse
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from dependency import vector_store
 from dependency.settings import settings
+from dependency.vector_store import vector_store
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+def pre_clean(text: str) -> str:
+    text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
+    text = re.sub(r"\n{2,}", "\n\n", text)
+    text = re.sub(r"\s+", " ", text)
+    text = text.strip()
+    return text
+
+
+def post_clean(text: str) -> str:
+    text = text.strip()
+    text = re.sub(r"^[\.\s]+", "", text)
+    text = re.sub(r"\s+", " ", text)
+    text += "."
+    return text
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -31,15 +47,17 @@ async def upload(
     docs = await loader.aload()
 
     full_text = "\n".join([doc.page_content for doc in docs])
+    full_text = pre_clean(full_text)
 
     text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         chunk_size=settings.rag.chunk_size,
         chunk_overlap=settings.rag.chunk_overlap,
         separators=settings.rag.separators,
     )
-    all_splits = text_splitter.split_text(full_text)
+    splits = text_splitter.split_text(full_text)
+    splits = [post_clean(split) for split in splits]
 
-    await vector_store.aadd_texts(all_splits)
+    await vector_store.aadd_texts(splits)
 
     return JSONResponse(
         content={"status": "success", "message": "Document successfully uploaded"},
