@@ -7,6 +7,7 @@ class QueryRequest(BaseModel):
 
 class RetrieveResult(BaseModel):
     query: str
+    hyde: str | None = None
     chunks: list[str]
 
 

@@ -1,23 +1,23 @@
 from dataclasses import dataclass
 
 from langchain.agents import create_agent
-from langchain.tools import ToolRuntime, tool
+from langchain.tools import tool
 from langchain_core.documents import Document
-from langchain_core.vectorstores import VectorStore
 from langchain_openai import ChatOpenAI
-from langgraph.graph.state import CompiledStateGraph
 
 from dependency.settings import settings
+from dependency.vector_store import vector_store
 
 
 @dataclass
-class RetrieveKnowledgeContext:
-    vector_store: VectorStore
+class RetrieveArtifcat:
+    docs: list[Document]
+    hyde: str
 
 
 @tool(response_format="content_and_artifact")
 def retrieve_knowledge(
-    runtime: ToolRuntime[RetrieveKnowledgeContext], query: str,
+    query: str,
 ) -> tuple[str, list[Document]]:
     """
     Mandatory tool for retrieving factual context from internal knowledge base.
@@ -26,17 +26,17 @@ def retrieve_knowledge(
     Input `query` should be a rewritten version of the user question optimized for search.
     """
 
-    # final_query = f"""
-    # Find explanations from educational or textbook passages that answer the question in detail.
+    hyde_prompt = f"""
+    Write a detailed textbook-style passage that answers the question.
 
-    # {query}
-    # """
+    Question: {query}
 
-    # final_query = f"query: {query}"
+    Answer:
+    """
 
-    final_query = query
+    final_query = generative.invoke(hyde_prompt).content
 
-    retrieved_docs = runtime.context.vector_store.similarity_search(
+    retrieved_docs = vector_store.similarity_search(
         final_query,
         k=settings.rag.top_k,
     )
@@ -44,7 +44,7 @@ def retrieve_knowledge(
         (f"Source: {doc.metadata}\nContent: {doc.page_content}")
         for doc in retrieved_docs
     )
-    return response, retrieved_docs
+    return response, RetrieveArtifcat(docs=retrieved_docs, hyde=final_query)
 
 
 prompt = """
@@ -64,14 +64,10 @@ Tool usage format:
 - Always call `retrieve_knowledge` with a relevant search query derived from the user question.
 """
 
-model = ChatOpenAI(
+generative = ChatOpenAI(
     model=settings.generative.name,
     base_url=settings.generative.base_url,
     api_key="EMPTY",
 )
 
-agent = create_agent(model, [retrieve_knowledge], system_prompt=prompt)
-
-
-def get_agent() -> CompiledStateGraph:
-    return agent
+agent = create_agent(generative, [retrieve_knowledge], system_prompt=prompt)

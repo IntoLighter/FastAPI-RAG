@@ -1,14 +1,13 @@
+import re
 import tempfile
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_qdrant import QdrantVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from dependency import vector_store
 from dependency.settings import settings
-from dependency.vector_store import get_vector_store
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -16,7 +15,6 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def upload(
     file: UploadFile,
-    vector_store: Annotated[QdrantVectorStore, Depends(get_vector_store)],
 ) -> JSONResponse:
     """To upload russian or english books."""
 

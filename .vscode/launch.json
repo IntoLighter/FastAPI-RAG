@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Python Debugger: Remote Attach",
+            "name": "Attach",
             "type": "debugpy",
             "request": "attach",
             "connect": {
