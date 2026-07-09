@@ -67,6 +67,8 @@ services:
     container_name: api
     build: .
     restart: unless-stopped
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
     ports:
       - ${APP__PORT}:8000
     depends_on:

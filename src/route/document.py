@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from transformers import AutoTokenizer
 
 from dependency.settings import settings
 from dependency.vector_store import vector_store
@@ -49,7 +50,12 @@ async def upload(
     full_text = "\n".join([doc.page_content for doc in docs])
     full_text = pre_clean(full_text)
 
-    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+    tokenizer = AutoTokenizer.from_pretrained(
+        settings.embedding.name,
+    )
+
+    text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
+        tokenizer=tokenizer,
         chunk_size=settings.rag.chunk_size,
         chunk_overlap=settings.rag.chunk_overlap,
         separators=settings.rag.separators,

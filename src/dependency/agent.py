@@ -37,16 +37,18 @@ def retrieve_knowledge(
     Input `query` should be a rewritten version of the user question optimized for search.
     """
 
+    # final_query = query
     # final_query = get_hyde_query(query)
-    final_query = f"query: {query}"
+    task_description = "Given a user question, retrieve relevant passages from a knowledge base that answer the question."
+    final_query = f"Instruct: {task_description}\nQuery: {query}"
 
     retrieved_docs = vector_store.similarity_search(
         final_query,
         k=settings.rag.top_k,
     )
     response = "\n\n".join(
-        (f"Source: {doc.metadata}\nContent: {doc.page_content}")
-        for doc in retrieved_docs
+        f"[Document {i}]\n{doc.page_content}"
+        for i, doc in enumerate(retrieved_docs, start=1)
     )
     return response, RetrieveArtifcat(docs=retrieved_docs, final_query=final_query)
 

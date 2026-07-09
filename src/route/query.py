@@ -27,7 +27,7 @@ async def query(
             results[message.tool_call_id].chunks = [
                 chunk.page_content for chunk in message.artifact.docs
             ]
-
+            results[message.tool_call_id].tool_response = message.content
     return QueryResponse(
         response=response["messages"][-1].text,
         knowledge=list(results.values()),
