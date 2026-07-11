@@ -10,7 +10,7 @@ from dependency.vector_store import vector_store
 
 
 @dataclass
-class RetrieveArtifcat:
+class RetrieveArtifact:
     docs: list[Document]
     final_query: str
 
@@ -29,7 +29,7 @@ def get_hyde_query(query: str) -> str:
 @tool(response_format="content_and_artifact")
 def retrieve_knowledge(
     query: str,
-) -> tuple[str, list[Document]]:
+) -> tuple[str, RetrieveArtifact]:
     """
     Mandatory tool for retrieving factual context from internal knowledge base.
 
@@ -50,7 +50,7 @@ def retrieve_knowledge(
         f"[Document {i}]\n{doc.page_content}"
         for i, doc in enumerate(retrieved_docs, start=1)
     )
-    return response, RetrieveArtifcat(docs=retrieved_docs, final_query=final_query)
+    return response, RetrieveArtifact(docs=retrieved_docs, final_query=final_query)
 
 
 prompt = """
