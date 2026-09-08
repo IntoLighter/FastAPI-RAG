@@ -1,19 +1,24 @@
 services:
   qdrant:
     restart: "no"
+    env_file: .env.debug
 
   embedding:
     restart: "no"
+    env_file: .env.debug
 
   generative:
     restart: "no"
+    env_file: .env.debug
 
   reranker:
     restart: "no"
+    env_file: .env.debug
 
   api:
     command: ["sh", "-c", "pip install debugpy -t /tmp && python /tmp/debugpy --wait-for-client --listen 0.0.0.0:5678 -m fastapi dev --entrypoint main:app --host 0.0.0.0 --port 8000"]
     restart: "no"
+    env_file: .env.debug    
     volumes:
       - ./src:/app/src
     ports:
