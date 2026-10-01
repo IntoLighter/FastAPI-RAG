@@ -9,6 +9,8 @@ class RagSettings(BaseModel):
     separators: list[str]
     retrieve_top_k: int
     rerank_top_k: int
+    embed_batch_size: int
+    embed_concurrency: int
 
 
 class AppSettings(BaseModel):
