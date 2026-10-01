@@ -1,7 +1,5 @@
-import asyncio
 import re
 import tempfile
-from functools import partial
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
@@ -29,34 +27,6 @@ def post_clean(text: str) -> str:
     text = re.sub(r"\s+", " ", text)
     text += "."
     return text
-
-
-def split_into_batches(texts: list[str], size: int) -> list[list[str]]:
-    return [texts[i : i + size] for i in range(0, len(texts), size)]
-
-
-async def embed_in_parallel(texts: list[str]) -> None:
-    """
-    Embed and store ``texts`` concurrently, one embedding request per batch.
-
-    ``vector_store.add_texts`` computes embeddings with a synchronous OpenAI
-    client, so each batch is offloaded to a worker thread. Up to
-    ``settings.rag.embed_concurrency`` batches run at the same time, which turns
-    the previous sequential embedding requests into parallel ones.
-    """
-    batches = split_into_batches(texts, settings.rag.embed_batch_size)
-    if not batches:
-        return
-
-    semaphore = asyncio.Semaphore(settings.rag.embed_concurrency)
-
-    async def add_batch(batch: list[str]) -> None:
-        async with semaphore:
-            await asyncio.to_thread(
-                partial(vector_store.add_texts, batch, batch_size=len(batch)),
-            )
-
-    await asyncio.gather(*(add_batch(batch) for batch in batches))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -93,7 +63,7 @@ async def upload(
     splits = text_splitter.split_text(full_text)
     splits = [post_clean(split) for split in splits]
 
-    await embed_in_parallel(splits)
+    await vector_store.aadd_texts(splits)
 
     return JSONResponse(
         content={"status": "success", "message": "Document successfully uploaded"},
