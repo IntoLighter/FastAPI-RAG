@@ -3,7 +3,6 @@ name: fastapi-rag
 services:
   qdrant:
     container_name: qdrant
-    env_file: .env
     image: qdrant/qdrant:v1.18.0
     restart: unless-stopped
     volumes:
@@ -15,7 +14,6 @@ services:
     container_name: generative
     image: vllm/vllm-openai:v0.28.0
     restart: unless-stopped
-    env_file: .env
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
       VLLM_USE_V2_MODEL_RUNNER: 0
@@ -44,7 +42,6 @@ services:
     container_name: embedding
     image: vllm/vllm-openai:v0.28.0
     restart: unless-stopped
-    env_file: .env
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
     volumes:
@@ -70,7 +67,6 @@ services:
     container_name: reranker
     image: vllm/vllm-openai-cpu:v0.28.0
     restart: unless-stopped
-    env_file: .env
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
     shm_size: '256mb'
