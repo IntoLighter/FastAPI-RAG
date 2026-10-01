@@ -12,9 +12,9 @@ dependencies = [
     "langchain-openai>=0.3.0",
     "langchain-qdrant>=1.1.0",
     "langchain-text-splitters>=1.1.1",
-    "loguru>=0.7.3",
     "pydantic-settings>=2.13.1",
     "pypdf>=6.7.5",
+    "structlog>=26.1.0",
     "transformers>=5.13.0",
 ]
 

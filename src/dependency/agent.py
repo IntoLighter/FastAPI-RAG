@@ -1,7 +1,9 @@
+import time
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
+import structlog
 from langchain.agents import create_agent
 from langchain.tools import tool
 from langchain_core.documents import Document
@@ -11,6 +13,14 @@ from pydantic import field_validator
 
 from dependency.settings import settings
 from dependency.vector_store import vector_store
+
+logger = structlog.get_logger()
+
+
+def _elapsed_ms(started_at: float) -> float:
+    """Return the number of milliseconds elapsed since ``started_at``."""
+    return round((time.perf_counter() - started_at) * 1000, 1)
+
 
 client = AsyncOpenAI(
     base_url=settings.reranker.base_url,
@@ -79,13 +89,53 @@ async def retrieve_knowledge(
     task_description = "Given a user question, retrieve relevant passages from a knowledge base that answer the question."
     final_query = f"Instruct: {task_description}\nQuery: {query}"
 
+    started_at = time.perf_counter()
     docs = await vector_store.asimilarity_search(
         final_query,
         k=settings.rag.retrieve_top_k,
     )
+    search_elapsed_ms = _elapsed_ms(started_at)
+
+    logger.info(
+        "semantic_search_finished",
+        query=final_query,
+        count=len(docs),
+        elapsed_ms=search_elapsed_ms,
+    )
+    logger.debug(
+        "semantic_search_documents",
+        query=final_query,
+        documents=[doc.page_content for doc in docs],
+    )
 
     doc_texts = [d.page_content for d in docs]
+
+    started_at = time.perf_counter()
     reranked_documents = await rerank(query, doc_texts)
+    rerank_elapsed_ms = _elapsed_ms(started_at)
+
+    logger.info(
+        "rerank_finished",
+        query=query,
+        count=len(reranked_documents),
+        top_score=max(
+            (result.relevance_score for result in reranked_documents),
+            default=None,
+        ),
+        elapsed_ms=rerank_elapsed_ms,
+    )
+    logger.debug(
+        "rerank_documents",
+        query=query,
+        documents=[
+            {
+                "index": result.index,
+                "score": result.relevance_score,
+                "content": result.document,
+            }
+            for result in reranked_documents
+        ],
+    )
 
     rerank_top_k_documents = reranked_documents[:settings.rag.rerank_top_k]
     rerank_top_k_texts = [d.document for d in rerank_top_k_documents]

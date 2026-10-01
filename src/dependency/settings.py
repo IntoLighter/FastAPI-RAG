@@ -13,6 +13,8 @@ class RagSettings(BaseModel):
 
 class AppSettings(BaseModel):
     port: int
+    log_level: str
+    log_json: bool
 
 
 class QdrantSettings(BaseModel):
