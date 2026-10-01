@@ -76,12 +76,10 @@ async def retrieve_knowledge(
     Input `query` should be a rewritten version of the user question optimized for search.
     """
 
-    # final_query = query
-    # final_query = await get_hyde_query(query)
     task_description = "Given a user question, retrieve relevant passages from a knowledge base that answer the question."
     final_query = f"Instruct: {task_description}\nQuery: {query}"
 
-    docs = vector_store.similarity_search(
+    docs = await vector_store.asimilarity_search(
         final_query,
         k=settings.rag.retrieve_top_k,
     )
