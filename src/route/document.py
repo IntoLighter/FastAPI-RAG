@@ -1,9 +1,9 @@
+import asyncio
 import re
-import tempfile
 
+import pymupdf
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
-from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from transformers import AutoTokenizer
 
@@ -22,20 +22,21 @@ text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
 )
 
 
+def _extract_text(content: bytes) -> str:
+    with pymupdf.open(stream=content, filetype="pdf") as doc:
+        return "\n".join(page.get_text() for page in doc)
+
+
 def pre_clean(text: str) -> str:
-    text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
-    text = re.sub(r"\n{2,}", "\n\n", text)
-    text = re.sub(r"\s+", " ", text)
-    text = text.strip()
-    return text
+    text = re.sub(r"[ \t\xa0\f\v]+", " ", text)
+    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+    text = re.sub(r"(?<![.!?…:;\n])\n(?![\n#*\-»«\"'(\[{])", " ", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
 def post_clean(text: str) -> str:
     text = text.strip()
-    text = re.sub(r"^[\.\s]+", "", text)
-    text = re.sub(r"\s+", " ", text)
-    text += "."
-    return text
+    return re.sub(r"\s+", " ", text)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -49,12 +50,7 @@ async def upload(
 
     content = await file.read()
 
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete_on_close=False) as tmp:
-        tmp.write(content)
-        tmp.flush()
-        docs = await PyPDFLoader(tmp.name).aload()
-
-    full_text = "\n".join([doc.page_content for doc in docs])
+    full_text = await asyncio.to_thread(_extract_text, content)
     full_text = pre_clean(full_text)
 
     splits = text_splitter.split_text(full_text)
