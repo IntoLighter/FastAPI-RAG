@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from dependency.logging import configure_logging
 from dependency.settings import settings
 from middleware.logging import LoggingMiddleware
-from route import document, query
+from routes import document, query
 
 configure_logging(
     level=settings.app.log_level,
