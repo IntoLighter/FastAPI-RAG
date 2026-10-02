@@ -1,21 +1,21 @@
-from qdrant_client import QdrantClient
-from qdrant_client.http.models import VectorParams
+import asyncio
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
 from settings import settings
 
-client = QdrantClient(
-    host=settings.qdrant.host,
-    port=settings.qdrant.port,
-)
 
-if client.collection_exists(
-    collection_name=settings.qdrant.collection_name,
-):
-    client.delete_collection(settings.qdrant.collection_name)
+async def main() -> None:
+    engine = create_async_engine(settings.postgres.url)
+    async with engine.begin() as connection:
+        await connection.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
+        await connection.execute(
+            text(f"TRUNCATE TABLE {settings.postgres.chunk_table}"),
+        )
+    await engine.dispose()
+    print(f"Table {settings.postgres.chunk_table} truncated")
 
-client.create_collection(
-    collection_name=settings.qdrant.collection_name,
-    vectors_config=VectorParams(
-        size=settings.qdrant.vector_size,
-        distance=settings.qdrant.distance,
-    ),
-)
+
+if __name__ == "__main__":
+    asyncio.run(main())

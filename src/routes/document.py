@@ -1,16 +1,19 @@
 import asyncio
 import re
 import time
+from typing import Annotated
 
 import pymupdf
 import structlog
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from sqlalchemy.ext.asyncio import AsyncSession
 from transformers import AutoTokenizer
 
+from database import get_session
+from dependency import vector_store
 from dependency.settings import settings
-from dependency.vector_store import vector_store
 from utils import elapsed_ms
 
 logger = structlog.get_logger()
@@ -52,6 +55,7 @@ def post_clean(text: str) -> str:
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def upload(
     file: UploadFile,
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> JSONResponse:
     """To upload russian or english books."""
 
@@ -81,7 +85,11 @@ async def upload(
     split_elapsed_ms = elapsed_ms(started_at)
 
     started_at = time.perf_counter()
-    await vector_store.aadd_texts(splits)
+    chunks = await vector_store.add_texts(
+        session,
+        splits,
+        source=file.filename,
+    )
     embed_elapsed_ms = elapsed_ms(started_at)
 
     logger.info(
@@ -89,7 +97,7 @@ async def upload(
         filename=file.filename,
         pages=pages,
         chars=len(full_text),
-        chunks=len(splits),
+        chunks=chunks,
         extract_elapsed_ms=extract_elapsed_ms,
         split_elapsed_ms=split_elapsed_ms,
         embed_elapsed_ms=embed_elapsed_ms,

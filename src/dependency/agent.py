@@ -10,8 +10,9 @@ from langchain_openai import ChatOpenAI
 from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator
 
+from database import current_session
+from dependency import vector_store
 from dependency.settings import settings
-from dependency.vector_store import vector_store
 from utils import elapsed_ms
 
 logger = structlog.get_logger()
@@ -89,7 +90,8 @@ async def retrieve_knowledge(
     final_query = f"Instruct: {task_description}\nQuery: {query}"
 
     started_at = time.perf_counter()
-    chunks = await vector_store.asimilarity_search(
+    chunks = await vector_store.similarity_search(
+        current_session(),
         final_query,
         k=settings.rag.retrieve_top_k,
     )

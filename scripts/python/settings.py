@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from qdrant_client.http.models import Distance
 
 path1 = os.path.abspath(os.path.join(__file__, "..", "..", "..", ".env"))
 path2 = os.path.abspath(os.path.join(__file__, "..", ".env"))
@@ -12,12 +11,20 @@ load_dotenv(path1)
 load_dotenv(path2, override=True)
 
 
-class QdrantSettings(BaseModel):
+class PostgresSettings(BaseModel):
     host: str
     port: int
-    collection_name: str
-    vector_size: int
-    distance: Distance
+    user: str
+    password: str
+    database: str
+    chunk_table: str
+
+    @property
+    def url(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.user}:{self.password}"
+            f"@{self.host}:{self.port}/{self.database}"
+        )
 
 
 class Settings(BaseSettings):
@@ -31,7 +38,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    qdrant: QdrantSettings
+    postgres: PostgresSettings
 
 
 settings = Settings()

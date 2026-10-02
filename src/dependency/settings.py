@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from qdrant_client.http.models import Distance
 
 
 class RagSettings(BaseModel):
@@ -17,12 +16,23 @@ class AppSettings(BaseModel):
     log_json: bool
 
 
-class QdrantSettings(BaseModel):
+class PostgresSettings(BaseModel):
     host: str
     port: int
-    collection_name: str
+    user: str
+    password: str
+    database: str
+    echo: bool = False
     vector_size: int
-    distance: Distance
+    chunk_table: str
+    distance: str
+
+    @property
+    def url(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.user}:{self.password}"
+            f"@{self.host}:{self.port}/{self.database}"
+        )
 
 
 class GenerativeSettings(BaseModel):
@@ -50,7 +60,7 @@ class Settings(BaseSettings):
     generative: GenerativeSettings
     embedding: EmbeddingSettings
     reranker: RerankerSettings
-    qdrant: QdrantSettings
+    postgres: PostgresSettings
     rag: RagSettings
 
 

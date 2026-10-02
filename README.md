@@ -1,6 +1,6 @@
 # FastAPI RAG
 
-A RAG service built with FastAPI, LangChain, Qdrant, and Qwen models served with vLLM.
+A RAG service built with FastAPI, LangChain, PostgreSQL (pgvector), and Qwen models served with vLLM.
 
 ## Architecture
 
@@ -11,9 +11,17 @@ A RAG service built with FastAPI, LangChain, Qdrant, and Qwen models served with
                            │
               ┌────────────┼────────────┐
               ▼            ▼            ▼
-         ┌─────────┐ ┌───────────┐ ┌──────────┐
-         │ Qdrant  │ │ Embedding │ │ Reranker │
-         └─────────┘ └───────────┘ └──────────┘
+         ┌──────────────┐ ┌───────────┐ ┌──────────┐
+         │ PostgreSQL   │ │ Embedding │ │ Reranker │
+         │  (pgvector)  │ └───────────┘ └──────────┘
+         └──────┬───────┘
+                │
+       ┌────────┴─────────┐
+       ▼                  ▼
+┌─────────────┐    ┌──────────────┐
+│ Conversations│    │    vLLM      │
+│  / Messages  │    │  Qwen3-4B    │
+└─────────────┘    └──────────────┘
                            │
                            ▼
                     ┌─────────────┐
@@ -26,7 +34,8 @@ A RAG service built with FastAPI, LangChain, Qdrant, and Qwen models served with
 * Python 3.13+
 * FastAPI
 * LangChain
-* Qdrant
+* PostgreSQL 17 + pgvector
+* SQLModel / SQLAlchemy (async, asyncpg)
 * vLLM
 * Docker Compose
 * Qwen3-4B-AWQ
@@ -36,7 +45,7 @@ A RAG service built with FastAPI, LangChain, Qdrant, and Qwen models served with
 ## RAG Pipeline
 
 1. Documents are split into chunks.
-2. Embeddings are generated and stored in Qdrant.
+2. Embeddings are generated and stored in PostgreSQL (pgvector).
 3. The query retrieves relevant chunks.
 4. Retrieved chunks are reranked.
 5. The most relevant chunks are passed to the generative model.

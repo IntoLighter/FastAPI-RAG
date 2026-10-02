@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class QueryRequest(BaseModel):
     message: str
+    conversation_id: str | None = None
 
 
 class RetrievedContext(BaseModel):
@@ -12,4 +13,5 @@ class RetrievedContext(BaseModel):
 
 class QueryResponse(BaseModel):
     answer: str
+    conversation_id: str
     retrieved: list[RetrievedContext]
