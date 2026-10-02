@@ -93,6 +93,9 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    environment:
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
     volumes:
       - huggingface_cache:/root/.cache/huggingface
     ports:

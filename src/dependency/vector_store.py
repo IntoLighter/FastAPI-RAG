@@ -5,7 +5,8 @@ from qdrant_client import QdrantClient
 from dependency.settings import settings
 
 client = QdrantClient(
-    host=settings.qdrant.host, port=settings.qdrant.port,
+    host=settings.qdrant.host,
+    port=settings.qdrant.port,
 )
 
 vector_store = QdrantVectorStore(
@@ -15,5 +16,6 @@ vector_store = QdrantVectorStore(
         model=settings.embedding.name,
         base_url=settings.embedding.base_url,
         api_key="EMPTY",
+        check_embedding_ctx_length=False,
     ),
 )

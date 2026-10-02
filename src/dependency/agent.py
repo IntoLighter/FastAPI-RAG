@@ -13,13 +13,9 @@ from pydantic import field_validator
 
 from dependency.settings import settings
 from dependency.vector_store import vector_store
+from utils import elapsed_ms
 
 logger = structlog.get_logger()
-
-
-def _elapsed_ms(started_at: float) -> float:
-    """Return the number of milliseconds elapsed since ``started_at``."""
-    return round((time.perf_counter() - started_at) * 1000, 1)
 
 
 client = AsyncOpenAI(
@@ -83,10 +79,14 @@ async def retrieve_knowledge(
     Mandatory tool for retrieving factual context from internal knowledge base.
 
     ALWAYS use this tool before answering any question.
-    Input `query` should be a rewritten version of the user question optimized for search.
+    Input `query` should be a rewritten version of the user question
+    optimized for search.
     """
 
-    task_description = "Given a user question, retrieve relevant passages from a knowledge base that answer the question."
+    task_description = (
+        "Given a user question, retrieve relevant passages "
+        "from a knowledge base that answer the question."
+    )
     final_query = f"Instruct: {task_description}\nQuery: {query}"
 
     started_at = time.perf_counter()
@@ -94,7 +94,7 @@ async def retrieve_knowledge(
         final_query,
         k=settings.rag.retrieve_top_k,
     )
-    search_elapsed_ms = _elapsed_ms(started_at)
+    search_elapsed_ms = elapsed_ms(started_at)
 
     logger.info(
         "semantic_search_finished",
@@ -112,7 +112,7 @@ async def retrieve_knowledge(
 
     started_at = time.perf_counter()
     reranked_documents = await rerank(query, doc_texts)
-    rerank_elapsed_ms = _elapsed_ms(started_at)
+    rerank_elapsed_ms = elapsed_ms(started_at)
 
     logger.info(
         "rerank_finished",
@@ -157,15 +157,18 @@ You are a retrieval-augmented assistant.
 You MUST follow these rules:
 
 1. For EVERY user question, you MUST first call the tool `retrieve_knowledge`.
-2. You are NOT allowed to answer from your internal knowledge without using the tool first.
+2. You are NOT allowed to answer from your internal knowledge
+   without using the tool first.
 3. Even if you think you know the answer, you still MUST use the tool.
 4. Only after receiving tool output, you may generate the final answer.
-5. If the tool returns no relevant information, say that the information was not found in the knowledge base.
+5. If the tool returns no relevant information, say that the information
+   was not found in the knowledge base.
 
 Violation of these rules is not allowed.
 
 Tool usage format:
-- Always call `retrieve_knowledge` with a relevant search query derived from the user question.
+- Always call `retrieve_knowledge` with a relevant search query
+  derived from the user question.
 """
 
 generative = ChatOpenAI(

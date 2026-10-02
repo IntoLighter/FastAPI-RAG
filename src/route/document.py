@@ -1,7 +1,9 @@
 import asyncio
 import re
+import time
 
 import pymupdf
+import structlog
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -9,6 +11,9 @@ from transformers import AutoTokenizer
 
 from dependency.settings import settings
 from dependency.vector_store import vector_store
+from utils import elapsed_ms
+
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -22,9 +27,14 @@ text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
 )
 
 
-def _extract_text(content: bytes) -> str:
+def _extract_text(content: bytes) -> tuple[str, int]:
     with pymupdf.open(stream=content, filetype="pdf") as doc:
-        return "\n".join(page.get_text() for page in doc)
+        return "\n".join(page.get_text() for page in doc), doc.page_count
+
+
+def _split_text(full_text: str) -> list[str]:
+    cleaned = pre_clean(full_text)
+    return [post_clean(chunk) for chunk in text_splitter.split_text(cleaned)]
 
 
 def pre_clean(text: str) -> str:
@@ -48,15 +58,42 @@ async def upload(
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
+    started_at = time.perf_counter()
     content = await file.read()
 
-    full_text = await asyncio.to_thread(_extract_text, content)
-    full_text = pre_clean(full_text)
+    full_text, pages = await asyncio.to_thread(_extract_text, content)
+    extract_elapsed_ms = elapsed_ms(started_at)
 
-    splits = text_splitter.split_text(full_text)
-    splits = [post_clean(split) for split in splits]
+    if not full_text.strip():
+        logger.warning(
+            "pdf_has_no_text_layer",
+            filename=file.filename,
+            pages=pages,
+            elapsed_ms=extract_elapsed_ms,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="PDF has no text layer (probably a scanned document)",
+        )
 
+    started_at = time.perf_counter()
+    splits = await asyncio.to_thread(_split_text, full_text)
+    split_elapsed_ms = elapsed_ms(started_at)
+
+    started_at = time.perf_counter()
     await vector_store.aadd_texts(splits)
+    embed_elapsed_ms = elapsed_ms(started_at)
+
+    logger.info(
+        "document_indexed",
+        filename=file.filename,
+        pages=pages,
+        chars=len(full_text),
+        chunks=len(splits),
+        extract_elapsed_ms=extract_elapsed_ms,
+        split_elapsed_ms=split_elapsed_ms,
+        embed_elapsed_ms=embed_elapsed_ms,
+    )
 
     return JSONResponse(
         content={"status": "success", "message": "Document successfully uploaded"},

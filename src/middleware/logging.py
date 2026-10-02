@@ -6,12 +6,9 @@ import structlog
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from utils import elapsed_ms
+
 REQUEST_ID_HEADER = "X-Request-ID"
-
-
-def _elapsed_ms(started_at: float) -> float:
-    """Return the number of milliseconds elapsed since ``started_at``."""
-    return round((time.perf_counter() - started_at) * 1000, 1)
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -37,17 +34,17 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 "request_failed",
                 method=request.method,
                 path=request.url.path,
-                elapsed_ms=_elapsed_ms(started_at),
+                elapsed_ms=elapsed_ms(started_at),
             )
             raise
 
-        elapsed_ms = _elapsed_ms(started_at)
+        duration_ms = elapsed_ms(started_at)
         response.headers[REQUEST_ID_HEADER] = request_id
         logger.info(
             "request_finished",
             method=request.method,
             path=request.url.path,
             status=response.status_code,
-            elapsed_ms=elapsed_ms,
+            elapsed_ms=duration_ms,
         )
         return response
