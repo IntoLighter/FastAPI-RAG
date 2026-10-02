@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from dependency.agent import agent
-from schema.query import QueryRequest, QueryResponse, RetrieveResult
+from schema.query import QueryRequest, QueryResponse, RetrievedContext
 
 router = APIRouter(tags=["query"])
 
@@ -14,20 +14,14 @@ async def query(
         {"messages": [{"role": "user", "content": query.message}]},
     )
 
-    results: dict[str, RetrieveResult] = {}
-
-    for message in response["messages"]:
-        if message.type == "ai" and message.tool_calls:
-            tool_data = message.tool_calls[0]
-            results[tool_data["id"]] = RetrieveResult(
-                llm_query=tool_data["args"]["query"],
-            )
-        elif message.type == "tool":
-            results[message.tool_call_id].final_query = message.artifact.final_query
-            results[message.tool_call_id].chunks = message.artifact.docs
-            results[message.tool_call_id].tool_response = message.content
+    artifacts = [
+        message.artifact for message in response["messages"] if message.type == "tool"
+    ]
 
     return QueryResponse(
-        response=response["messages"][-1].text,
-        knowledge=list(results.values()),
+        answer=response["messages"][-1].text,
+        retrieved=[
+            RetrievedContext(query=artifact.query, chunks=artifact.chunks)
+            for artifact in artifacts
+        ],
     )

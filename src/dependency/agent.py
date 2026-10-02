@@ -6,10 +6,9 @@ import httpx
 import structlog
 from langchain.agents import create_agent
 from langchain.tools import tool
-from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
-from openai import AsyncOpenAI, BaseModel
-from pydantic import field_validator
+from openai import AsyncOpenAI
+from pydantic import BaseModel, field_validator
 
 from dependency.settings import settings
 from dependency.vector_store import vector_store
@@ -56,8 +55,8 @@ async def rerank(query: str, docs: list[str]) -> list[RerankResult]:
 
 @dataclass
 class RetrieveArtifact:
-    docs: list[Document]
-    final_query: str
+    query: str
+    chunks: list[str]
 
 
 async def get_hyde_query(query: str) -> str:
@@ -90,7 +89,7 @@ async def retrieve_knowledge(
     final_query = f"Instruct: {task_description}\nQuery: {query}"
 
     started_at = time.perf_counter()
-    docs = await vector_store.asimilarity_search(
+    chunks = await vector_store.asimilarity_search(
         final_query,
         k=settings.rag.retrieve_top_k,
     )
@@ -99,16 +98,16 @@ async def retrieve_knowledge(
     logger.info(
         "semantic_search_finished",
         query=final_query,
-        count=len(docs),
+        count=len(chunks),
         elapsed_ms=search_elapsed_ms,
     )
     logger.debug(
         "semantic_search_documents",
         query=final_query,
-        documents=[doc.page_content for doc in docs],
+        documents=[doc.page_content for doc in chunks],
     )
 
-    doc_texts = [d.page_content for d in docs]
+    doc_texts = [d.page_content for d in chunks]
 
     started_at = time.perf_counter()
     reranked_documents = await rerank(query, doc_texts)
@@ -137,17 +136,16 @@ async def retrieve_knowledge(
         ],
     )
 
-    rerank_top_k_documents = reranked_documents[:settings.rag.rerank_top_k]
-    rerank_top_k_texts = [d.document for d in rerank_top_k_documents]
+    rerank_top_k_docs = reranked_documents[: settings.rag.rerank_top_k]
+    rerank_top_k_texts = [d.document for d in rerank_top_k_docs]
 
+    chunks = rerank_top_k_texts
     response = "\n\n".join(
-        f"[Document {i}]\n{doc}"
-        for i, doc in enumerate(rerank_top_k_texts, start=1)
+        f"[Document {i}]\n{doc}" for i, doc in enumerate(chunks, start=1)
     )
-
     return response, RetrieveArtifact(
-        docs=rerank_top_k_texts,
-        final_query=final_query
+        query=query,
+        chunks=chunks,
     )
 
 

@@ -1,17 +1,15 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class QueryRequest(BaseModel):
     message: str
 
 
-class RetrieveResult(BaseModel):
-    llm_query: str
-    final_query: str | None = None
-    chunks: list[str] = Field(default_factory=list)
-    tool_response: str | None = None
+class RetrievedContext(BaseModel):
+    query: str
+    chunks: list[str]
 
 
 class QueryResponse(BaseModel):
-    response: str
-    knowledge: list[RetrieveResult]
+    answer: str
+    retrieved: list[RetrievedContext]
