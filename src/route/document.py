@@ -12,6 +12,15 @@ from dependency.vector_store import vector_store
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
+tokenizer = AutoTokenizer.from_pretrained(settings.embedding.name)
+
+text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
+    tokenizer=tokenizer,
+    chunk_size=settings.rag.chunk_size,
+    chunk_overlap=settings.rag.chunk_overlap,
+    separators=settings.rag.separators,
+)
+
 
 def pre_clean(text: str) -> str:
     text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
@@ -40,26 +49,14 @@ async def upload(
 
     content = await file.read()
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete_on_close=False) as tmp:
         tmp.write(content)
-        tmp_path = tmp.name
-
-    loader = PyPDFLoader(tmp_path)
-    docs = await loader.aload()
+        tmp.flush()
+        docs = await PyPDFLoader(tmp.name).aload()
 
     full_text = "\n".join([doc.page_content for doc in docs])
     full_text = pre_clean(full_text)
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        settings.embedding.name,
-    )
-
-    text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
-        tokenizer=tokenizer,
-        chunk_size=settings.rag.chunk_size,
-        chunk_overlap=settings.rag.chunk_overlap,
-        separators=settings.rag.separators,
-    )
     splits = text_splitter.split_text(full_text)
     splits = [post_clean(split) for split in splits]
 
