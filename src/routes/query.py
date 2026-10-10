@@ -1,6 +1,11 @@
+import uuid
+
+import psycopg
 from fastapi import APIRouter
+from langchain_postgres import PostgresChatMessageHistory
 
 from dependency.agent import agent
+from dependency.settings import settings
 from schema.query import QueryRequest, QueryResponse, RetrievedContext
 
 router = APIRouter(tags=["query"])
@@ -10,8 +15,21 @@ router = APIRouter(tags=["query"])
 async def query(
     query: QueryRequest,
 ) -> QueryResponse:
+    session_id = query.session_id or uuid.uuid4()
+
+    async_connection = psycopg.AsyncConnection.connect(settings.postgres.psycopg_conninfo)
+    chat_message_history_client = PostgresChatMessageHistory(
+        table_name=settings.postgres.chat_table_name,
+        session_id=str(session_id),
+        async_connection=async_connection
+    )
+
+    messages = await chat_message_history_client.aget_messages()
+    messages.append({"role": "user", "content": query.message})
+
     response = await agent.ainvoke(
-        {"messages": [{"role": "user", "content": query.message}]},
+        messages,
+        config={"configurable": {"thread_id": str(session_id)}},
     )
 
     artifacts = [

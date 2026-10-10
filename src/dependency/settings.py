@@ -1,6 +1,9 @@
+from functools import cached_property
+
+from psycopg.conninfo import make_conninfo
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from qdrant_client.http.models import Distance
+from sqlalchemy.engine import URL
 
 
 class RagSettings(BaseModel):
@@ -17,12 +20,38 @@ class AppSettings(BaseModel):
     log_json: bool
 
 
-class QdrantSettings(BaseModel):
+class PostgresSettings(BaseModel):
     host: str
     port: int
-    collection_name: str
+    database: str
+    user: str
+    password: str
     vector_size: int
-    distance: Distance
+    embedding_table_name: str
+    chat_table_name: str
+
+    @cached_property
+    def psycopg_conninfo(self) -> str:
+        """Connection string in libpq format for the psycopg async driver."""
+        return make_conninfo(
+            host=self.host,
+            port=self.port,
+            dbname=self.database,
+            user=self.user,
+            password=self.password,
+        )
+
+    @cached_property
+    def sqlalchemy_conninfo(self) -> str:
+        """SQLAlchemy URL using the psycopg async driver."""
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.user,
+            password=self.password,
+            host=self.host,
+            port=self.port,
+            database=self.database,
+        ).render_as_string(hide_password=False)
 
 
 class GenerativeSettings(BaseModel):
@@ -50,7 +79,7 @@ class Settings(BaseSettings):
     generative: GenerativeSettings
     embedding: EmbeddingSettings
     reranker: RerankerSettings
-    qdrant: QdrantSettings
+    postgres: PostgresSettings
     rag: RagSettings
 
 

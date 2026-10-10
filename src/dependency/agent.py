@@ -3,10 +3,12 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
+import psycopg
 import structlog
 from langchain.agents import create_agent
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
+from langchain_postgres import PostgresChatMessageHistory
 from openai import AsyncOpenAI
 from pydantic import BaseModel, field_validator
 
@@ -176,3 +178,8 @@ generative = ChatOpenAI(
 )
 
 agent = create_agent(generative, [retrieve_knowledge], system_prompt=prompt)
+
+async_connection = psycopg.AsyncConnection.connect(settings.postgres.psycopg_conninfo)
+PostgresChatMessageHistory.create_tables(
+    async_connection, settings.postgres.chat_table_name
+)
